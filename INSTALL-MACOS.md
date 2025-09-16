@@ -1,0 +1,133 @@
+# Piper TTS Installation Guide (macOS, Apple Silicon M1/M2 Optimized)
+
+This guide sets up Piper TTS cleanly and reproducibly on Apple Silicon (M1/M2).  
+It includes phonemizer, playback tools, and Apple Silicon–friendly practices.
+
+---
+
+## 1. Install Homebrew (if not installed)
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+Add Homebrew to your shell environment safely:
+
+```bash
+eval "$(/opt/homebrew/bin/brew shellenv)"
+```
+
+---
+
+## 2. Update Brew & Install Dependencies
+
+```bash
+brew update
+brew upgrade
+
+# Core dependencies
+brew install python espeak-ng ffmpeg
+```
+
+- `python`: Latest stable Python (>=3.9).  
+- `espeak-ng`: Required for phonemization.  
+- `ffmpeg`: Playback/resampling support.
+
+---
+
+## 3. Create & Activate Virtual Environment
+
+```bash
+$(brew --prefix python)/bin/python3 -m venv ~/.local/piper-venv
+source ~/.local/piper-venv/bin/activate
+
+# Upgrade pip toolchain
+pip install --upgrade pip setuptools wheel
+```
+
+---
+
+## 4. Install Piper TTS
+
+```bash
+pip install piper-tts
+```
+
+---
+
+## 5. Install ONNX Runtime (CPU version for Apple Silicon)
+
+```bash
+pip install onnxruntime
+```
+
+> The CPU version is reliable on M1/M2. GPU acceleration for ONNX on macOS is experimental and usually not needed for Piper’s footprint.
+
+---
+
+## 6. Download Voices via Catalog Tool
+
+Instead of hardcoding URLs, use the built-in downloader:
+
+```bash
+mkdir -p ~/piper-voices
+python -m piper.download_voices --download-dir ~/piper-voices en_US-amy-medium
+```
+
+Available voices can be listed with:
+
+```bash
+python -m piper.download_voices --list
+```
+
+---
+
+## 7. Test Piper
+
+Generate and play speech:
+
+```bash
+echo "Hello from Piper on macOS M1!" | piper --model ~/piper-voices/en_US-amy-medium.onnx --output_file /tmp/piper_test.wav
+afplay /tmp/piper_test.wav
+```
+
+---
+
+## 8. Fix Audio Crackling (Optional)
+
+If audio playback crackles, resample to 48 kHz:
+
+```bash
+ffmpeg -y -i /tmp/piper_test.wav -ar 48000 /tmp/piper_test_48k.wav
+afplay /tmp/piper_test_48k.wav
+```
+
+---
+
+## 9. Wrappers for Easier Use (Optional)
+
+Add shortcuts in `~/.zshrc`:
+
+```bash
+alias piper-say='piper --model ~/piper-voices/en_US-amy-medium.onnx --output_file /tmp/piper_out.wav && afplay /tmp/piper_out.wav'
+```
+
+Then:
+
+```bash
+echo "Custom voice shortcut working!" | piper-say
+```
+
+---
+
+## 10. Cleanup Temporary Files
+
+Piper creates `/tmp/piper_*.wav`. You can clean them manually:
+
+```bash
+rm -f /tmp/piper_*.wav
+```
+
+---
+
+✅ You now have a stable, optimized Piper TTS setup for Apple Silicon (M1/M2).

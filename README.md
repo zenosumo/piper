@@ -4,6 +4,7 @@ This repository provides helper scripts and wrapper commands for running [Piper 
 
 ## Installation Guides
 
+- [macOS CLI setup](./INSTALL-MACOS.md)
 - [Ubuntu / Debian CLI setup](./INSTALL-UBUNTU.md)
 
 > Have instructions for another platform? Open a PR or issue so we can link it here.
