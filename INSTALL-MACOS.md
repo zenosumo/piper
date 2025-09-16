@@ -74,11 +74,38 @@ mkdir -p "~/Library/Application Support/piper/voices"
 python -m piper.download_voices --download-dir "~/Library/Application Support/piper/voices" en_US-amy-medium
 ```
 
-Available voices can be listed with:
+Available voices can be explored online:
+
+- Catalog: https://github.com/rhasspy/piper/blob/master/VOICES.md
+- Samples: https://rhasspy.github.io/piper-samples/
+
+
+(Optional bulk installs)
+
+Install **all American English voices**:
 
 ```bash
-python -m piper.download_voices --list
+for voice in $(curl -s https://raw.githubusercontent.com/rhasspy/piper/master/VOICES.md | grep -Eo 'en_US-[a-z]+-(low|medium|high)'); do
+  python -m piper.download_voices --download-dir "~/Library/Application Support/piper/voices" $voice
+done
 ```
+
+Install **all British English voices**:
+
+```bash
+for voice in $(curl -s https://raw.githubusercontent.com/rhasspy/piper/master/VOICES.md | grep -Eo 'en_GB-[a-z]+-(low|medium|high)'); do
+  python -m piper.download_voices --download-dir "~/Library/Application Support/piper/voices" $voice
+done
+```
+
+Install **all Italian voices**:
+
+```bash
+for voice in $(curl -s https://raw.githubusercontent.com/rhasspy/piper/master/VOICES.md | grep -Eo 'it_IT-[a-z]+-(low|medium|high)'); do
+  python -m piper.download_voices --download-dir "~/Library/Application Support/piper/voices" $voice
+done
+```
+
 
 ---
 
@@ -87,8 +114,10 @@ python -m piper.download_voices --list
 Generate and play speech:
 
 ```bash
-echo "Hello from Piper on macOS M1!" | piper --model "~/Library/Application Support/piper/voices/en_US-amy-medium.onnx" --output_file /tmp/piper_test.wav
-afplay /tmp/piper_test.wav
+mkdir -p "${TMPDIR:-/tmp}/piper" && \
+echo "Hello from Piper on macOS M1!" | \
+piper --model "~/Library/Application Support/piper/voices/en_US-amy-medium.onnx" --output_file "${TMPDIR:-/tmp}/piper/piper_test.wav"
+afplay "${TMPDIR:-/tmp}/piper/piper_test.wav"
 ```
 
 ---
@@ -98,8 +127,8 @@ afplay /tmp/piper_test.wav
 If audio playback crackles, resample to 48 kHz:
 
 ```bash
-ffmpeg -y -i /tmp/piper_test.wav -ar 48000 /tmp/piper_test_48k.wav
-afplay /tmp/piper_test_48k.wav
+ffmpeg -y -i "${TMPDIR:-/tmp}/piper/piper_test.wav" -ar 48000 "${TMPDIR:-/tmp}/piper/piper_test_48k.wav"
+afplay "${TMPDIR:-/tmp}/piper/piper_test_48k.wav"
 ```
 
 ---
@@ -109,7 +138,7 @@ afplay /tmp/piper_test_48k.wav
 Add shortcuts in `~/.zshrc`:
 
 ```bash
-alias piper-say='piper --model "~/Library/Application Support/piper/voices/en_US-amy-medium.onnx" --output_file /tmp/piper_out.wav && afplay /tmp/piper_out.wav'
+alias piper-say='mkdir -p "${TMPDIR:-/tmp}/piper" && piper --model "~/Library/Application Support/piper/voices/en_US-amy-medium.onnx" --output_file "${TMPDIR:-/tmp}/piper/piper_out.wav" && afplay "${TMPDIR:-/tmp}/piper/piper_out.wav"'
 ```
 
 Then:
@@ -125,7 +154,7 @@ echo "Custom voice shortcut working!" | piper-say
 Piper creates `/tmp/piper_*.wav`. You can clean them manually:
 
 ```bash
-rm -f /tmp/piper_*.wav
+rm -f "${TMPDIR:-/tmp}/piper/piper_*.wav"
 ```
 
 ---
