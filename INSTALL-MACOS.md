@@ -70,8 +70,8 @@ pip install onnxruntime
 Instead of hardcoding URLs, use the built-in downloader:
 
 ```bash
-mkdir -p "~/Library/Application Support/piper/voices"
-python -m piper.download_voices --download-dir "~/Library/Application Support/piper/voices" en_US-amy-medium
+mkdir -p $HOME/Library/Application\ Support/piper/voices
+python -m piper.download_voices --download-dir $HOME/Library/Application\ Support/piper/voices en_US-amy-medium
 ```
 
 Available voices can be explored online:
@@ -86,7 +86,7 @@ Install **all American English voices**:
 
 ```bash
 for voice in $(curl -s https://raw.githubusercontent.com/rhasspy/piper/master/VOICES.md | grep -Eo 'en_US-[a-z]+-(low|medium|high)'); do
-  python -m piper.download_voices --download-dir "~/Library/Application Support/piper/voices" $voice
+  python -m piper.download_voices --download-dir $HOME/Library/Application\ Support/piper/voices $voice
 done
 ```
 
@@ -94,7 +94,7 @@ Install **all British English voices**:
 
 ```bash
 for voice in $(curl -s https://raw.githubusercontent.com/rhasspy/piper/master/VOICES.md | grep -Eo 'en_GB-[a-z]+-(low|medium|high)'); do
-  python -m piper.download_voices --download-dir "~/Library/Application Support/piper/voices" $voice
+  python -m piper.download_voices --download-dir $HOME/Library/Application\ Support/piper/voices $voice
 done
 ```
 
@@ -102,7 +102,7 @@ Install **all Italian voices**:
 
 ```bash
 for voice in $(curl -s https://raw.githubusercontent.com/rhasspy/piper/master/VOICES.md | grep -Eo 'it_IT-[a-z]+-(low|medium|high)'); do
-  python -m piper.download_voices --download-dir "~/Library/Application Support/piper/voices" $voice
+  python -m piper.download_voices --download-dir $HOME/Library/Application\ Support/piper/voices $voice
 done
 ```
 
@@ -116,7 +116,7 @@ Generate and play speech:
 ```bash
 mkdir -p "${TMPDIR:-/tmp}/piper" && \
 echo "Hello from Piper on macOS M1!" | \
-piper --model "~/Library/Application Support/piper/voices/en_US-amy-medium.onnx" --output_file "${TMPDIR:-/tmp}/piper/piper_test.wav"
+piper --model $HOME/Library/Application\ Support/piper/voices/en_US-amy-medium.onnx --output_file "${TMPDIR:-/tmp}/piper/piper_test.wav"
 afplay "${TMPDIR:-/tmp}/piper/piper_test.wav"
 ```
 
@@ -138,7 +138,7 @@ afplay "${TMPDIR:-/tmp}/piper/piper_test_48k.wav"
 Add shortcuts in `~/.zshrc`:
 
 ```bash
-alias piper-say='mkdir -p "${TMPDIR:-/tmp}/piper" && piper --model "~/Library/Application Support/piper/voices/en_US-amy-medium.onnx" --output_file "${TMPDIR:-/tmp}/piper/piper_out.wav" && afplay "${TMPDIR:-/tmp}/piper/piper_out.wav"'
+alias piper-say='mkdir -p "${TMPDIR:-/tmp}/piper" && piper --model $HOME/Library/Application\ Support/piper/voices/en_US-amy-medium.onnx --output_file "${TMPDIR:-/tmp}/piper/piper_out.wav" && afplay "${TMPDIR:-/tmp}/piper/piper_out.wav"'
 ```
 
 Then:
