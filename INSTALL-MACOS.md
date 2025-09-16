@@ -38,7 +38,7 @@ brew install python espeak-ng ffmpeg
 ## 3. Create & Activate Virtual Environment
 
 ```bash
-$(brew --prefix python)/bin/python3 -m venv ~/.local/piper-venv
+$(brew --prefix python@3.11)/bin/python3.11 -m venv ~/.local/piper-venv
 source ~/.local/piper-venv/bin/activate
 
 # Upgrade pip toolchain
@@ -70,8 +70,8 @@ pip install onnxruntime
 Instead of hardcoding URLs, use the built-in downloader:
 
 ```bash
-mkdir -p ~/piper-voices
-python -m piper.download_voices --download-dir ~/piper-voices en_US-amy-medium
+mkdir -p "~/Library/Application Support/piper/voices"
+python -m piper.download_voices --download-dir "~/Library/Application Support/piper/voices" en_US-amy-medium
 ```
 
 Available voices can be listed with:
@@ -87,7 +87,7 @@ python -m piper.download_voices --list
 Generate and play speech:
 
 ```bash
-echo "Hello from Piper on macOS M1!" | piper --model ~/piper-voices/en_US-amy-medium.onnx --output_file /tmp/piper_test.wav
+echo "Hello from Piper on macOS M1!" | piper --model "~/Library/Application Support/piper/voices/en_US-amy-medium.onnx" --output_file /tmp/piper_test.wav
 afplay /tmp/piper_test.wav
 ```
 
@@ -109,7 +109,7 @@ afplay /tmp/piper_test_48k.wav
 Add shortcuts in `~/.zshrc`:
 
 ```bash
-alias piper-say='piper --model ~/piper-voices/en_US-amy-medium.onnx --output_file /tmp/piper_out.wav && afplay /tmp/piper_out.wav'
+alias piper-say='piper --model "~/Library/Application Support/piper/voices/en_US-amy-medium.onnx" --output_file /tmp/piper_out.wav && afplay /tmp/piper_out.wav'
 ```
 
 Then:
