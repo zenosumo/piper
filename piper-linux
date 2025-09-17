@@ -1,0 +1,185 @@
+#!/bin/bash
+set -euo pipefail
+
+# =========================================
+# Piper wrapper for Linux (uses its own virtual env)
+# =========================================
+VENV_DIR="$HOME/.local/piper-venv"
+PYTHON_BIN="$VENV_DIR/bin/python"
+DEFAULT_VOICE="en_US-amy-medium"   # bare voice ID (no path, no .onnx)
+VOICE_DIR="$HOME/piper-voices"
+RETENTION_MINUTES="${RETENTION_MINUTES:-120}"   # auto-delete temp WAVs older than this
+WORKDIR="${TMPDIR:-/tmp}/piper"
+
+# Ensure temp dir exists
+mkdir -p "$WORKDIR"
+
+# Cleanup old WAVs (best-effort)
+find "$WORKDIR" -type f -name '*.wav' -mmin +"$RETENTION_MINUTES" -delete 2>/dev/null || true
+
+die() { echo "error: $*" >&2; exit 1; }
+
+# Verify venv python exists
+[[ -x "$PYTHON_BIN" ]] || die "Missing venv python at: $PYTHON_BIN
+Hint (installer):
+  python3 -m venv \"$VENV_DIR\" && source \"$VENV_DIR/bin/activate\" && pip install --upgrade pip setuptools wheel && pip install piper-tts onnxruntime"
+
+# Quick sanity: make sure piper is importable
+if ! "$PYTHON_BIN" -c "import piper, onnxruntime" >/dev/null 2>&1; then
+  die "Piper/ONNX not installed in venv. Try:
+  source \"$VENV_DIR/bin/activate\"
+  pip install piper-tts onnxruntime"
+fi
+
+usage() {
+  cat <<EOF
+Usage:
+  $(basename "$0") say [-m VOICE_ID|MODEL_PATH] ["text to speak"]
+  $(basename "$0") which [VOICE_ID]
+  $(basename "$0") list [local|all] [FILTER]
+  $(basename "$0") download VOICE_ID [...]
+Notes:
+  - VOICE_ID is a short id like "en_US-amy-medium" (no path, no .onnx).
+  - If -m is omitted, defaults to $DEFAULT_VOICE.
+  - list local: shows installed voices from "$VOICE_DIR" (default).
+  - list all:   shows catalog from upstream and optional FILTER (grep-like).
+  - download:   installs voices into "$VOICE_DIR".
+  - Output files are written to: $WORKDIR
+  - Retention: files older than ${RETENTION_MINUTES} minutes are auto-removed.
+  - Always uses: "$PYTHON_BIN -m piper".
+EOF
+}
+
+resolve_model() {
+  # input: $1 may be a VOICE_ID or a path to .onnx
+  local arg="${1:-}"
+  if [[ -z "$arg" ]]; then
+    echo "$VOICE_DIR/${DEFAULT_VOICE}.onnx"; return 0
+  fi
+  if [[ "$arg" == *.onnx || "$arg" == /* || "$arg" == ~/* ]]; then
+    echo "$arg"
+  else
+    echo "$VOICE_DIR/${arg}.onnx"
+  fi
+}
+
+cmd_which() {
+  local id="${1:-$DEFAULT_VOICE}"
+  local model; model="$(resolve_model "$id")"
+  echo "$model"
+}
+
+cmd_say() {
+  local model_arg=""
+  local -a words=()
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -m|--model) model_arg="$2"; shift 2;;
+      -h|--help) usage; exit 0;;
+      --) shift; break;;
+      *) words+=("$1"); shift;;
+    esac
+  done
+
+  local model; model="$(resolve_model "$model_arg")"
+
+  if [[ ! -f "$model" ]]; then
+    echo "Model not found: $model" >&2
+    echo "Install it with:" >&2
+    echo "  \"$PYTHON_BIN\" -m piper.download_voices --download-dir \"$VOICE_DIR\" $(basename "${model%.onnx}")" >&2
+    exit 1
+  fi
+
+  local out="$WORKDIR/piper_$(date +%s).wav"
+
+  if [[ ${#words[@]} -eq 0 ]]; then
+    "$PYTHON_BIN" -m piper --model "$model" --output_file "$out"
+  else
+    printf '%s\n' "${words[*]}" | "$PYTHON_BIN" -m piper --model "$model" --output_file "$out"
+  fi
+
+  if command -v ffplay >/dev/null 2>&1; then
+    ffplay -autoexit -nodisp "$out" || true
+  elif command -v paplay >/dev/null 2>&1; then
+    paplay "$out" || true
+  elif command -v aplay >/dev/null 2>&1; then
+    aplay "$out" || true
+  else
+    echo "Wrote: $out" >&2
+  fi
+}
+
+# ---- list voices ----
+# list local|all [FILTER]
+cmd_list() {
+  local scope="${1:-local}"; shift || true
+  local filter="${1:-}"
+
+  case "$scope" in
+    local)
+      local dir="$VOICE_DIR"
+      if [[ ! -d "$dir" ]]; then
+        echo "No voice directory: $dir"
+        return 1
+      fi
+      shopt -s nullglob
+      local files=( "$dir"/*.onnx )
+      if (( ${#files[@]} == 0 )); then
+        echo "No voices installed in: $dir"
+        return 0
+      fi
+      printf "%-32s  %8s  %s\n" "VOICE_ID" "SIZE" "MODIFIED"
+      for f in "${files[@]}"; do
+        local id="$(basename "${f%.onnx}")"
+        [[ -n "$filter" && "$id" != *"$filter"* ]] && continue
+        local sz="$(du -h "$f" | awk '{print $1}')"
+        local mt="$(date -r "$f" '+%Y-%m-%d %H:%M')"
+        printf "%-32s  %8s  %s\n" "$id" "$sz" "$mt"
+      done
+      ;;
+    all)
+      # Pull catalog (VOICES.md) and extract voice IDs
+      local url="https://raw.githubusercontent.com/rhasspy/piper/master/VOICES.md"
+      if ! command -v curl >/dev/null 2>&1; then
+        echo "curl is required to list catalog (install via: sudo apt install curl)"; return 1
+      fi
+      # shellcheck disable=SC2002
+      local ids; ids="$(curl -fsSL "$url" | grep -Eo '[a-z]{2}_[A-Z]{2}-[a-z]+-(low|medium|high)' | sort -u)"
+      if [[ -n "$filter" ]]; then
+        ids="$(printf '%s\n' "$ids" | grep -i -- "$filter" || true)"
+      fi
+      if [[ -z "$ids" ]]; then
+        echo "No matches."
+        return 0
+      fi
+      printf "%s\n" "$ids"
+      ;;
+    *)
+      echo "Unknown scope for list: $scope (use 'local' or 'all')" >&2
+      return 1
+      ;;
+  esac
+}
+
+# ---- download ----
+# download VOICE_ID [...]
+cmd_download() {
+  [[ $# -gt 0 ]] || die "download: provide at least one VOICE_ID"
+  mkdir -p "$VOICE_DIR"
+  local id
+  for id in "$@"; do
+    echo "Downloading: $id -> $VOICE_DIR"
+    "$PYTHON_BIN" -m piper.download_voices --download-dir "$VOICE_DIR" "$id"
+  done
+}
+
+# ---- main ----
+sub="${1:-}"; shift || true
+case "${sub:-}" in
+  say)       cmd_say "$@";;
+  which)     cmd_which "$@";;
+  list)      cmd_list "$@";;
+  download)  cmd_download "$@";;
+  ""|-h|--help) usage;;
+  *) echo "Unknown command: $sub"; usage; exit 1;;
+esac
